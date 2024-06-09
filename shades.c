@@ -4,7 +4,7 @@
 #include "pico/util/datetime.h"
 #include "hardware/sync.h"
 
-#define MOTOR_DURATION_MS             2400
+#define MOTOR_DURATION_MS             2800
 
 #define LED_PIN                       PICO_DEFAULT_LED_PIN
 #define CLOCKWISE_PIN                 0
@@ -43,22 +43,11 @@ void gpio_callback(uint gpio, uint32_t events) {
 }
 
 int main() {
-    int motor_direction_pin;
-
-    // Start on Friday 5th of June 2020 15:45:00
-    datetime_t t = {
-            .year  = 2024,
-            .month = 06,
-            .day   = 06,
-            .dotw  = 4, // 0 is Sunday
-            .hour  = 23,
-            .min   = 19,
-            .sec   = 00
-    };
+    int selected_motor_pin;
+    bool shades_closed = true;
 
     // Start the RTC
     rtc_init();
-    rtc_set_datetime(&t);
 
     // Initialize pins
     for (int i = 0; i < NUM_PINS; i++)
@@ -73,9 +62,7 @@ int main() {
             gpio_put(pin, GPIO_OUT);
     }
 
-    // Initialize shades to be closed
-    bool shades_closed = true;
-
+    // Set IRQs for GPIO (button) and RTC (alarm)
     gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
     rtc_set_alarm((datetime_t *)&alarm_time, &irq_callback);
 
@@ -85,16 +72,18 @@ int main() {
         __wfi();
 
         if (shades_closed)
-            motor_direction_pin = CLOCKWISE_PIN;
+            selected_motor_pin = CLOCKWISE_PIN;
         else
-            motor_direction_pin = COUNTER_CLOCKWISE_PIN;
+            selected_motor_pin = COUNTER_CLOCKWISE_PIN;
 
-        // Power the motor for TBD seconds
-        gpio_put(motor_direction_pin, 1);
+        // Power the motor long enough to open or close the shades
+        gpio_put(selected_motor_pin, 1);
         sleep_ms(MOTOR_DURATION_MS);
-        gpio_put(motor_direction_pin, 0);
+        gpio_put(selected_motor_pin, 0);
 
-        shades_closed = motor_direction_pin;
+        shades_closed = (selected_motor_pin == COUNTER_CLOCKWISE_PIN)
+            ? true
+            : false;
 
         // Set alarm for 7 AM
         rtc_set_alarm((datetime_t *)&alarm_time, &irq_callback);
