@@ -15,13 +15,21 @@
 
 #define NUM_PINS 6
 
-const int pin_definitions[NUM_PINS][3] = {
-    {LED_PIN,                   GPIO_OUT, 0},
-    {BUTTON_ENABLE_PIN,         GPIO_OUT, 1},
-    {CLOCKWISE_PIN,             GPIO_OUT, 0},
-    {COUNTER_CLOCKWISE_PIN,     GPIO_OUT, 0},
-    {MOTOR_ENABLE_PIN,          GPIO_OUT, 1},
-    {BUTTON_PIN,                GPIO_IN, 0},
+typedef struct pin_t
+{
+    int number;
+    int direction;
+    int default_value;
+} pin_t;
+
+static const pin_t pin_definitions[NUM_PINS] =
+{
+    {.number = LED_PIN,               .direction = GPIO_OUT, .default_value = 0},
+    {.number = BUTTON_ENABLE_PIN,     .direction = GPIO_OUT, .default_value = 1},
+    {.number = CLOCKWISE_PIN,         .direction = GPIO_OUT, .default_value = 0},
+    {.number = COUNTER_CLOCKWISE_PIN, .direction = GPIO_OUT, .default_value = 0},
+    {.number = MOTOR_ENABLE_PIN,      .direction = GPIO_OUT, .default_value = 1},
+    {.number = BUTTON_PIN,            .direction = GPIO_IN,  .default_value = 0}
 };
 
 datetime_t alarm_time = {
@@ -34,32 +42,41 @@ datetime_t alarm_time = {
     .sec   = 0
 };
 
-void irq_callback(void) {
+void irq_callback(void)
+{
     gpio_put(LED_PIN, 1);
 }
 
-void gpio_callback(uint gpio, uint32_t events) {
+void gpio_callback(uint gpio, uint32_t events)
+{
     gpio_put(LED_PIN, 1);
 }
 
-int main() {
+int main()
+{
     int selected_motor_pin;
     bool shades_closed = true;
+    datetime_t start_time = {
+        .year = 2024,
+        .month = 6,
+        .day = 10,
+        .dotw = 1,
+        .hour = 23,
+        .min = 33,
+        .sec = 0
+    };
 
     // Start the RTC
     rtc_init();
+    rtc_set_datetime(&start_time);
 
     // Initialize pins
     for (int i = 0; i < NUM_PINS; i++)
     {
-        int pin = pin_definitions[i][0];
-        int dir = pin_definitions[i][1];
-        int val = pin_definitions[i][2];
-
-        gpio_init(pin);
-        gpio_set_dir(pin, dir);
-        if (val == GPIO_OUT)
-            gpio_put(pin, GPIO_OUT);
+        gpio_init(pin_definitions[i].number);
+        gpio_set_dir(pin_definitions[i].number, pin_definitions[i].direction);
+        if (pin_definitions[i].default_value == GPIO_OUT)
+            gpio_put(pin_definitions[i].number, GPIO_OUT);
     }
 
     // Set IRQs for GPIO (button) and RTC (alarm)
