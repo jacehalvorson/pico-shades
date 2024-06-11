@@ -62,7 +62,7 @@ int main()
         .day = 10,
         .dotw = 1,
         .hour = 23,
-        .min = 33,
+        .min = 38,
         .sec = 0
     };
 
@@ -78,6 +78,15 @@ int main()
         if (pin_definitions[i].default_value == GPIO_OUT)
             gpio_put(pin_definitions[i].number, GPIO_OUT);
     }
+
+    // Find the closed position
+    gpio_put(COUNTER_CLOCKWISE_PIN, 1);
+    sleep_ms(5000);
+    gpio_put(COUNTER_CLOCKWISE_PIN, 0);
+    // Back off from the maximum
+    gpio_put(CLOCKWISE_PIN, 1);
+    sleep_ms(300);
+    gpio_put(CLOCKWISE_PIN, 0);
 
     // Set IRQs for GPIO (button) and RTC (alarm)
     gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
