@@ -48,6 +48,7 @@ endif()
 
 add_executable(shades
     shades.c
+    set_rtc_time.c
 )
 
 target_include_directories(shades PRIVATE ${CMAKE_CURRENT_LIST_DIR} )
