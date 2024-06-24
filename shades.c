@@ -50,25 +50,26 @@ datetime_t alarm_time = {
     .sec   = 0
 };
 
-volatile int led_on = 0;
+volatile int blinking_led_on = 0;
+volatile bool shades_toggle_queued = false;
 
 void irq_callback(void)
 {
     // Turn LED on
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+    shades_toggle_queued = true;
 }
 
 void gpio_callback(uint gpio, uint32_t events)
 {
-    // Turn LED on
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+    irq_callback();
 }
 
 bool led_blink_timer_callback(repeating_timer_t *rt)
 {
     // Toggle LED
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, !led_on);
-    led_on = !led_on;
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, !blinking_led_on);
+    blinking_led_on = !blinking_led_on;
 
     // Keep repeating
     return true;
@@ -165,8 +166,9 @@ int main()
 
     while (1)
     {
-        debug_printf("Waiting for interrupt...\n");
-        __wfi();
+        debug_printf("Waiting for button press or alarm...\n");
+        while(!shades_toggle_queued)
+            sleep_ms(100);
 
         if (shades_closed)
             selected_motor_pin = CLOCKWISE_PIN;
@@ -188,6 +190,7 @@ int main()
         rtc_set_alarm((datetime_t *)&alarm_time, &irq_callback);
 
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        shades_toggle_queued = false;
     }
 
     // Cleanup
