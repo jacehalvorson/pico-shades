@@ -26,7 +26,7 @@ typedef struct NTP_T_ {
 
 #define TIMEZONE_OFFSET_FROM_UTC_SEC (-5 * 3600)
 
-// #define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
     #define debug_printf(...) printf(__VA_ARGS__)
