@@ -1,13 +1,17 @@
+#ifndef SET_RTC_TIME_H
+#define SET_RTC_TIME_H
+
 #include <string.h>
 #include <time.h>
 
-#include "pico/stdlib.h"
 #include "hardware/rtc.h"
 #include "pico/cyw43_arch.h"
 
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
+
+#include "utils.h"
 
 typedef struct NTP_T_ {
     ip_addr_t ntp_server_address;
@@ -26,14 +30,6 @@ typedef struct NTP_T_ {
 
 #define TIMEZONE_OFFSET_FROM_UTC_SEC (-5 * 3600)
 
-#define DEBUG
-
-#ifdef DEBUG
-    #define debug_printf(...) printf(__VA_ARGS__)
-#else
-    #define debug_printf(...)
-#endif
-
 // Called with results of operation
 static void ntp_result(NTP_T* state, int status, time_t *result);
 // Called with results of failure
@@ -49,3 +45,5 @@ static NTP_T* ntp_init(void);
 
 // Sets RTC to current time
 void set_rtc_time(void);
+
+#endif // SET_RTC_TIME_H
