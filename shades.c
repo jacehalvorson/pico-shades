@@ -36,9 +36,6 @@ int main()
     // Set the RTC to the current time
     set_rtc_time();
 
-    // TEMP - Disconnect from Wi-fi (which also disables LED)
-    cyw43_arch_deinit();
-
     debug_printf("Setting IRQs for the button and alarm\n");
     gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
     if (set_alarm(irq_callback))
