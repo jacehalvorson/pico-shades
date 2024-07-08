@@ -3,7 +3,8 @@
 int main()
 {
     int selected_motor_pin;
-    bool shades_closed = true;
+    bool shades_closed;
+    repeating_timer_t led_blink_timer;
 
 #ifdef DEBUG
     stdio_init_all();
@@ -61,17 +62,39 @@ int main()
         debug_printf("Shades %s\n", (selected_motor_pin == CLOCKWISE_PIN) ? "opening" : "closing");
 
         // Power the motor long enough to open or close the shades
-        gpio_put(selected_motor_pin, 1);
-        sleep_ms(MOTOR_DURATION_MS);
-        gpio_put(selected_motor_pin, 0);
+        // gpio_put(selected_motor_pin, 1);
+        // sleep_ms(MOTOR_DURATION_MS);
+        // gpio_put(selected_motor_pin, 0);
 
         // Update the state of the shades based on motor position
-        shades_closed = (selected_motor_pin == COUNTER_CLOCKWISE_PIN)
-            ? true
-            : false;
+        // shades_closed = (selected_motor_pin == COUNTER_CLOCKWISE_PIN)
+        //     ? true
+        //     : false;
 
         // Set the next alarm, either to open or close the shades
-        set_alarm(irq_callback);
+        // set_alarm(irq_callback);
+
+        // Important Mode: Blink an LED at 6 hz
+        if (!add_repeating_timer_us(-1000000 / 6, led_blink_timer_callback, NULL, &led_blink_timer)) {
+            debug_printf("Failed to add timer\n");
+            return 1;
+        }
+
+        // Important Mode: Keep spinning the motor back and forth until the button is pressed
+        shades_toggle_queued = false;
+        while (!shades_toggle_queued)
+        {
+            gpio_put(CLOCKWISE_PIN, 1);
+            sleep_ms(MOTOR_DURATION_MS);
+            gpio_put(CLOCKWISE_PIN, 0);
+            sleep_ms(1000);
+            gpio_put(COUNTER_CLOCKWISE_PIN, 1);
+            sleep_ms(MOTOR_DURATION_MS);
+            gpio_put(COUNTER_CLOCKWISE_PIN, 0);
+            sleep_ms(1000);   
+        }
+
+        cancel_repeating_timer(&led_blink_timer);
 
         // Turn LED off
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
@@ -89,7 +112,7 @@ int main()
 void irq_callback(void)
 {
     // Turn LED on
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+    // cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
     shades_toggle_queued = true;
 }
 
