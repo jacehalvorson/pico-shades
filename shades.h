@@ -43,12 +43,18 @@ static const pin_t pin_definitions[NUM_PINS] =
 
 // -------------------Global Data-------------------
 
-volatile bool shades_toggle_queued = false;
+static volatile bool shades_toggle_queued = false;
+static volatile bool shades_closed = true;
+static          bool important_mode = false;
 
 // -------------------Functions---------------------
 
 int main();
 
+void open_shades(void);
+void close_shades(void);
+
+void important_mode_callback(void);
 void irq_callback(void);
 void gpio_callback(uint gpio, uint32_t events);
 
