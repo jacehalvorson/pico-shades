@@ -12,8 +12,8 @@ static datetime_t open_time = {
     .month = -1,
     .day   = -1,
     .dotw  = -1,
-    .hour  = 4,
-    .min   = 30,
+    .hour  = 7,
+    .min   = 00,
     .sec   = 0
 };
 
@@ -23,8 +23,8 @@ static datetime_t close_time = {
     .month = -1,
     .day   = -1,
     .dotw  = -1,
-    .hour  = 10,
-    .min   = 54,
+    .hour  = 19,
+    .min   = 00,
     .sec   = 0
 };
 
