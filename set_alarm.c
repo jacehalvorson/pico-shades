@@ -25,9 +25,10 @@ int set_alarm(void (*irq_callback)(void))
         rtc_set_alarm(&open_time, irq_callback);
     }
 
-    // Blink LED at 5 Hz for half a second to indicate the alarm is set
-    // Ignore return status
-    (void)blink_led(5, 500);
+    // Blink LED at for half a second to indicate the alarm is set
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+    sleep_ms(500);
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
     return 0;
 }

@@ -5,7 +5,6 @@
 int connect_to_wifi(char *wifi_ssid, char *wifi_password)
 {
     int connection_attempts = 0;
-    repeating_timer_t led_blink_timer;
 
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_USA))
     {
@@ -16,13 +15,8 @@ int connect_to_wifi(char *wifi_ssid, char *wifi_password)
     
     cyw43_arch_enable_sta_mode();
 
-    // Set a hardware timer to blink a light while attempting to connect
-
-    // negative timeout means exact delay (rather than delay between callbacks)
-    if (!add_repeating_timer_us(-1000000 / 2, led_blink_timer_callback, NULL, &led_blink_timer)) {
-        debug_printf("Failed to add timer\n");
-        return 1;
-    }
+    // Blink an LED at 2 Hz while attempting to connect
+    start_blinking_led(2);
 
     // Connect to the Wi-Fi network.
     // If the connection attempt returns an error code, retry up to 3 times.
@@ -42,14 +36,31 @@ int connect_to_wifi(char *wifi_ssid, char *wifi_password)
 
     debug_printf("Connected to '%s'\n", wifi_ssid);
 
-    // Disable LED blink timer and turn off LED
-    cancel_repeating_timer(&led_blink_timer);
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+    stop_blinking_led();
 
     return 0;
 }
 
 // -------------------Blink LED functions-----------
+
+void start_blinking_led(const int frequency_hz)
+{
+    // Negative timeout means exact delay (rather than delay between callbacks)
+    if (!add_repeating_timer_us((-1 * MICROSECONDS_PER_SECOND) / frequency_hz, led_blink_timer_callback, NULL, &led_blink_timer))
+    {
+        debug_printf("Failed to add timer\n");
+        return;
+    }
+
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+}
+
+void stop_blinking_led(void)
+{
+    cancel_repeating_timer(&led_blink_timer);
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+    blinking_led_on = 0;
+}
 
 bool led_blink_timer_callback(repeating_timer_t *rt)
 {
@@ -57,22 +68,6 @@ bool led_blink_timer_callback(repeating_timer_t *rt)
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, !blinking_led_on);
     blinking_led_on = !blinking_led_on;
 
-    // Keep repeating
+    // Return true to keep repeating
     return true;
-}
-
-int blink_led(const int frequency_hz, const int duration_ms)
-{
-    repeating_timer_t led_blink_timer;
-    if (!add_repeating_timer_us(-1000000 / frequency_hz, led_blink_timer_callback, NULL, &led_blink_timer))
-    {
-        debug_printf("Failed to add timer\n");
-        return 1;
-    }
-
-    sleep_ms(duration_ms);
-    
-    cancel_repeating_timer(&led_blink_timer);
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-    return 0;
 }

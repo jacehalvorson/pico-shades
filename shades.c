@@ -11,8 +11,8 @@ int main()
     {
         gpio_init(pin_definitions[i].number);
         gpio_set_dir(pin_definitions[i].number, pin_definitions[i].direction);
-        if (pin_definitions[i].default_value == GPIO_OUT)
-            gpio_put(pin_definitions[i].number, GPIO_OUT);
+        if (pin_definitions[i].direction == GPIO_OUT)
+            gpio_put(pin_definitions[i].number, pin_definitions[i].default_value);
     }
 
     debug_printf("Initializing motor position");
@@ -45,7 +45,7 @@ int main()
     while (1)
     {
         debug_printf("Waiting for button press or alarm...\n");
-        while (!shades_toggle_queued)
+        while (!interrupt_fired)
         {
             __wfi();
         }
@@ -62,7 +62,7 @@ int main()
 
         // This iteration is done, reset the flag and turn off LED
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-        shades_toggle_queued = false;
+        interrupt_fired = false;
     }
 
     cyw43_arch_deinit();
@@ -91,16 +91,14 @@ void close_shades(void)
 
 void important_mode_callback(void)
 {
-    static repeating_timer_t led_blink_timer;
+    unsigned cycle_count = 0;
 
     // Blink an LED at 6 hz
-    if (!add_repeating_timer_us(-1000000 / 6, led_blink_timer_callback, NULL, &led_blink_timer)) {
-        debug_printf("Failed to add timer\n");
-    }
+    start_blinking_led(6);
 
-    // Keep spinning the motor back and forth until the button is pressed
-    shades_toggle_queued = false;
-    while (!shades_toggle_queued)
+    // Keep spinning the motor back and forth until the button is pressed (or time expires)
+    interrupt_fired = false;
+    while (!interrupt_fired && cycle_count < (MAX_IMPORTANT_MODE_DURATION_SEC / 2))
     {
         gpio_put(CLOCKWISE_PIN, 1);
         sleep_ms(MOTOR_DURATION_MS);
@@ -110,15 +108,16 @@ void important_mode_callback(void)
         sleep_ms(MOTOR_DURATION_MS);
         gpio_put(COUNTER_CLOCKWISE_PIN, 0);
         sleep_ms(1000);   
+        cycle_count++;
     }
 
-    cancel_repeating_timer(&led_blink_timer);
+    stop_blinking_led();
 }
 
 // IRQ callback (alarm or GPIO)
 void irq_callback(void)
 {
-    shades_toggle_queued = true;
+    interrupt_fired = true;
 }
 
 // Button callback points to the same function as the alarm callback

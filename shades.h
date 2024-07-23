@@ -13,7 +13,8 @@
 
 // -------------------Constants---------------------
 
-#define MOTOR_DURATION_MS              2800
+#define MOTOR_DURATION_MS               2800
+#define MAX_IMPORTANT_MODE_DURATION_SEC 60
 
 // -------------------Pins--------------------------
 
@@ -43,7 +44,7 @@ static const pin_t pin_definitions[NUM_PINS] =
 
 // -------------------Global Data-------------------
 
-static volatile bool shades_toggle_queued = false;
+static volatile bool interrupt_fired = false;
 static volatile bool shades_closed = true;
 static          bool important_mode = false;
 
