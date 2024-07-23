@@ -47,9 +47,10 @@ else()
 endif()
 
 add_executable(shades
-    shades.c
-    set_rtc_time.c
     set_alarm.c
+    set_rtc_time.c
+    shades.c
+    tcp_server.c
     utils.c
 )
 

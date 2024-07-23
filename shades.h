@@ -9,6 +9,7 @@
 
 #include "set_rtc_time.h"
 #include "set_alarm.h"
+#include "tcp_server.h"
 #include "utils.h"
 
 // -------------------Constants---------------------

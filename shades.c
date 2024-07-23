@@ -2,6 +2,8 @@
 
 int main()
 {
+    TCP_SERVER_T *tcp_state;
+
 #ifdef DEBUG
     stdio_init_all();
 #endif
@@ -15,15 +17,15 @@ int main()
             gpio_put(pin_definitions[i].number, pin_definitions[i].default_value);
     }
 
-    debug_printf("Initializing motor position");
-    // Find the closed position
-    gpio_put(COUNTER_CLOCKWISE_PIN, 1);
-    sleep_ms(5000);
-    gpio_put(COUNTER_CLOCKWISE_PIN, 0);
-    // Back off from the maximum
-    gpio_put(CLOCKWISE_PIN, 1);
-    sleep_ms(300);
-    gpio_put(CLOCKWISE_PIN, 0);
+    // debug_printf("Initializing motor position");
+    // // Find the closed position
+    // gpio_put(COUNTER_CLOCKWISE_PIN, 1);
+    // sleep_ms(5000);
+    // gpio_put(COUNTER_CLOCKWISE_PIN, 0);
+    // // Back off from the maximum
+    // gpio_put(CLOCKWISE_PIN, 1);
+    // sleep_ms(300);
+    // gpio_put(CLOCKWISE_PIN, 0);
     shades_closed = true;
 
     debug_printf("Connecting to Wi-Fi network '%s'...\n", WIFI_SSID);
@@ -31,15 +33,17 @@ int main()
         return 1;
 
     // Set the RTC to the current time
-    set_rtc_time();
+    // set_rtc_time();
 
-    debug_printf("Setting IRQs for the button and alarm\n");
-    gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
-    if (set_alarm(irq_callback))
-    {
-        debug_printf("Failed to set alarm\n");
-        return 1;
-    }
+    // debug_printf("Setting IRQs for the button and alarm\n");
+    // gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
+    // if (set_alarm(irq_callback))
+    // {
+    //     debug_printf("Failed to set alarm\n");
+    //     return 1;
+    // }
+
+    tcp_state = tcp_server_open();
 
     // Main loop
     while (1)
@@ -65,6 +69,7 @@ int main()
         interrupt_fired = false;
     }
 
+    tcp_server_close(tcp_state);
     cyw43_arch_deinit();
     return 0;
 }

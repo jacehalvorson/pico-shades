@@ -4,7 +4,7 @@
 
 int connect_to_wifi(char *wifi_ssid, char *wifi_password)
 {
-    int connection_attempts = 0;
+    unsigned connection_attempts = 0;
 
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_USA))
     {
@@ -20,9 +20,37 @@ int connect_to_wifi(char *wifi_ssid, char *wifi_password)
 
     // Connect to the Wi-Fi network.
     // If the connection attempt returns an error code, retry up to 3 times.
-    while (cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 10000))
+    while (cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000))
     {
-        debug_printf("Failed to connect to '%s'\n", wifi_ssid);
+#ifdef DEBUG
+        switch (cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA))
+        {
+        case CYW43_LINK_DOWN:
+            debug_printf("Link down\n");
+            break;
+        case CYW43_LINK_JOIN:
+            debug_printf("Connected to wifi\n");
+            break;
+        case CYW43_LINK_NOIP:
+            debug_printf("Connected to wifi, but no IP address\n");
+            break;
+        case CYW43_LINK_UP:
+            debug_printf("Connected to wifi with an IP address\n");
+            break;
+        case CYW43_LINK_FAIL:
+            debug_printf("Connection failed\n");
+            break;
+        case CYW43_LINK_NONET:
+            debug_printf("No matching SSID found (could be out of range, or down)\n");
+            break;
+        case CYW43_LINK_BADAUTH:
+            debug_printf("Authenticatation failure\n");
+            break;
+        default:
+            break;
+        }
+#endif
+
         if (connection_attempts > 3)
         {
             debug_printf("Exiting\n");
@@ -35,7 +63,6 @@ int connect_to_wifi(char *wifi_ssid, char *wifi_password)
     }
 
     debug_printf("Connected to '%s'\n", wifi_ssid);
-
     stop_blinking_led();
 
     return 0;
