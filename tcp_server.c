@@ -59,29 +59,19 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
 
     pbuf_free(p);
 
-    // Have we have received the whole buffer
-    if (state->recv_len == BUF_SIZE)
-    {
-        // check it matches
-        if (memcmp(state->buffer_sent, state->buffer_recv, BUF_SIZE) != 0)
-        {
-            debug_printf("TCP Server: Buffer mismatch\n");
-            return ERR_RTE;
-        }
-        debug_printf("TCP Server: tcp_server_recv buffer ok\n");
+    debug_printf("TCP Server: Received buffer:\n");
+    state->buffer_recv[state->recv_len] = '\0';
+    debug_printf("%s\n", state->buffer_recv);
         
-        state->run_count++;
-        state->complete = true;
+    state->run_count++;
 
-        // Send another buffer
-        return tcp_server_send_data(arg, state->client_pcb);
-    }
-    return ERR_OK;
+    // Send another buffer
+    return tcp_server_send_data(arg, state->client_pcb);
 }
 
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb)
 {
-    debug_printf("TCP Server: tcp_server_poll_fn\nClosing connection...");
+    debug_printf("TCP Server: tcp_server_poll_fn\nClosing connection...\n");
     return tcp_close_connection((TCP_SERVER_T*)arg);
 }
 
@@ -89,7 +79,7 @@ static void tcp_server_err(void *arg, err_t err)
 {
     if (err != ERR_ABRT)
     {
-        debug_printf("TCP Server: tcp_client_err_fn %d\nClosing connection...", err);
+        debug_printf("TCP Server: tcp_client_err_fn %d\nClosing connection...\n", err);
         tcp_close_connection((TCP_SERVER_T*)arg);
     }
 }

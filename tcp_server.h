@@ -13,7 +13,7 @@
 #include "utils.h"
 
 #define TCP_PORT 1024
-#define BUF_SIZE 256
+#define BUF_SIZE 1024
 #define POLL_TIME_SEC 10
 
 typedef struct TCP_SERVER_T_
