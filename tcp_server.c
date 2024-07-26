@@ -8,8 +8,6 @@ static err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len)
 
     if (state->sent_len >= BUF_SIZE)
     {
-        // We should get the data back from the client
-        state->recv_len = 0;
         debug_printf("TCP Server: Waiting for buffer from client\n");
     }
 
@@ -39,48 +37,62 @@ err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
-    if (!p)
+    if (p == NULL || state == NULL)
     {
         return ERR_ARG;
     }
+    const u16_t buffer_left = BUF_SIZE - state->recv_len;
+    const u16_t transfer_length = p->tot_len > buffer_left ? buffer_left : p->tot_len;
 
     cyw43_arch_lwip_begin(); 
-    if (p->tot_len > 0)
+    if (transfer_length > 0)
     {
-        debug_printf("TCP Server: tcp_server_recv %d bytes err %d\n", p->tot_len, state->recv_len, err);
+        debug_printf("TCP Server: tcp_server_recv %d bytes err %d\n", p->tot_len, err);
 
         // Receive the buffer
-        const uint16_t buffer_left = BUF_SIZE - state->recv_len;
         state->recv_len += pbuf_copy_partial(p, state->buffer_recv + state->recv_len,
-                                             p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
+                                             transfer_length, 0);
         tcp_recved(tpcb, p->tot_len);
     }
     cyw43_arch_lwip_end();
 
-    pbuf_free(p);
+    if (strncmp(state->buffer_recv, "GET", 3) == 0)
+    {
+        debug_printf("TCP Server: Received GET Request\n");
+        debug_printf("%s\n", state->buffer_recv);
+        debug_printf("--------------------------------\n\n");
+    }
+    else if (strncmp(state->buffer_recv, "POST", 4) == 0)
+    {
+        debug_printf("TCP Server: Received POST Request\n");
+        debug_printf("%s\n", state->buffer_recv);
+        debug_printf("--------------------------------\n\n");
+    }
+    else
+    {
+        debug_printf("TCP Server: Received Unknown Request\n");
+        debug_printf("%s\n", state->buffer_recv);
+        debug_printf("--------------------------------\n\n");
+    }
 
-    debug_printf("TCP Server: Received buffer:\n");
-    state->buffer_recv[state->recv_len] = '\0';
-    debug_printf("%s\n", state->buffer_recv);
-        
     state->run_count++;
-
-    // Send another buffer
-    return tcp_server_send_data(arg, state->client_pcb);
+    state->recv_len = 0;
+    pbuf_free(p);
+    return ERR_OK;
 }
 
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb)
 {
-    debug_printf("TCP Server: tcp_server_poll_fn\nClosing connection...\n");
-    return tcp_close_connection((TCP_SERVER_T*)arg);
+    debug_printf("TCP Server: tcp_server_poll_fn\n");
+    return ERR_OK;
 }
 
 static void tcp_server_err(void *arg, err_t err)
 {
     if (err != ERR_ABRT)
     {
-        debug_printf("TCP Server: tcp_client_err_fn %d\nClosing connection...\n", err);
-        tcp_close_connection((TCP_SERVER_T*)arg);
+        debug_printf("TCP Server: tcp_client_err_fn %d\n", err);
+        tcp_server_close((TCP_SERVER_T *)arg);
     }
 }
 
@@ -101,10 +113,10 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
     tcp_poll(client_pcb, tcp_server_poll, POLL_TIME_SEC * 2);
     tcp_err(client_pcb, tcp_server_err);
 
-    return tcp_server_send_data(arg, state->client_pcb);
+    return ERR_OK;
 }
 
-err_t tcp_close_connection(TCP_SERVER_T *state)
+err_t tcp_server_close(TCP_SERVER_T *state)
 {
     err_t err = ERR_OK;
     if (state->client_pcb != NULL)
@@ -123,17 +135,6 @@ err_t tcp_close_connection(TCP_SERVER_T *state)
         }
         state->client_pcb = NULL;
     }
-    return err;
-}
-
-err_t tcp_server_close(TCP_SERVER_T *state)
-{
-    err_t err = ERR_OK;
-    if (tcp_close_connection(state) == ERR_ABRT)
-    {
-        return ERR_ABRT;
-    }
-
     if (state->server_pcb)
     {
         tcp_arg(state->server_pcb, NULL);
@@ -154,8 +155,6 @@ TCP_SERVER_T *tcp_server_open()
         debug_printf("TCP Server: Not connected %d\n", link_status);
         return NULL;
     }
-
-    debug_printf("TCP Server: Allocate %ld bytes\n", sizeof(TCP_SERVER_T));
 
     state = calloc(1, sizeof(TCP_SERVER_T));
     if (!state)
