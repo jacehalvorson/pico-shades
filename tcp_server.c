@@ -14,18 +14,17 @@ static err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len)
     return ERR_OK;
 }
 
-err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
+err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb, size_t len)
 {
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
-    for(int i=0; i< BUF_SIZE; i++)
+    if (state == NULL || len > BUF_SIZE)
     {
-        state->buffer_sent[i] = rand();
+        return ERR_ARG;
     }
-
     state->sent_len = 0;
-    debug_printf("TCP Server: Writing %ld bytes to client\n", BUF_SIZE);
+    debug_printf("TCP Server: Writing %ld bytes to client\n", len);
     cyw43_arch_lwip_begin();
-    err_t err = tcp_write(tpcb, state->buffer_sent, BUF_SIZE, TCP_WRITE_FLAG_COPY);
+    err_t err = tcp_write(tpcb, state->buffer_sent, len, TCP_WRITE_FLAG_COPY);
     cyw43_arch_lwip_end();
     if (err != ERR_OK)
     {
@@ -36,11 +35,17 @@ err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
 
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
-    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+    char json_response[JSON_RESPONSE_SIZE];
+    char http_response[BUF_SIZE];
+    datetime_t current_time;
+    TCP_SERVER_T *state;
+
+    state = (TCP_SERVER_T*)arg;
     if (p == NULL || state == NULL)
     {
         return ERR_ARG;
     }
+
     const u16_t buffer_left = BUF_SIZE - state->recv_len;
     const u16_t transfer_length = p->tot_len > buffer_left ? buffer_left : p->tot_len;
 
@@ -56,13 +61,76 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     }
     cyw43_arch_lwip_end();
 
-    if (strncmp(state->buffer_recv, "GET", 3) == 0)
+    if (strncmp((char *)state->buffer_recv, "GET", 3) == 0)
     {
         debug_printf("TCP Server: Received GET Request\n");
         debug_printf("%s\n", state->buffer_recv);
         debug_printf("--------------------------------\n\n");
+
+        // Respond with state of shades (open or closed)
+        snprintf(json_response, JSON_RESPONSE_SIZE, "{\"state\": \"%s\"}\n", are_shades_closed() ? "closed" : "open");
+
+        snprintf(
+            http_response, // Add to the end of the string
+            BUF_SIZE, // Remaining space
+            "HTTP/1.1 200 OK\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Content-Type: application/json\r\n"
+        );
+
+        // Add current date to the HTTP response
+        if (rtc_get_datetime(&current_time))
+        {
+            const char *month_names[] = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+            const char *day_names[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+
+            snprintf(
+                http_response + strlen(http_response), // Add to the end of the string
+                BUF_SIZE - strlen(http_response), // Remaining space
+                "Date: %s, %d %s %d %d:%d:%d CST\r\n",
+                day_names[current_time.dotw],
+                current_time.day,
+                month_names[current_time.month],
+                current_time.year,
+                current_time.hour,
+                current_time.min,
+                current_time.sec
+            );
+        }
+        else
+        {
+            debug_printf("Unable to set date in HTTP response\n");
+            strncat(
+                http_response + strlen(http_response), // Add to the end of the string
+                "Date: Sun, 1 Jan 1970 00:00:00 CST\r\n",
+                BUF_SIZE - strlen(http_response) // Remaining space
+            );
+        }
+
+        snprintf(
+            http_response + strlen(http_response), // Add to the end of the string
+            BUF_SIZE - strlen(http_response), // Remaining space
+            "Server: Shades Machine\r\n"
+            "Content-Length: %d\r\n"
+            "\r\n",
+            strlen(json_response)
+        );
+
+        // Add JSON response to the body of the HTTP response
+        strncat(http_response, json_response, BUF_SIZE - strlen(http_response));
+        debug_printf("HTTP Response:\n%s\n------------------------------\n", http_response);
+
+        // Copy data to the buffer to be sent
+        const size_t buffer_length = MIN(strlen(http_response), BUF_SIZE);
+        for (int i = 0; i < buffer_length; i++)
+        {
+            state->buffer_sent[i] = (uint8_t)http_response[i];
+        }
+
+        // Send the response
+        tcp_server_send_data(state, tpcb, buffer_length);
     }
-    else if (strncmp(state->buffer_recv, "POST", 4) == 0)
+    else if (strncmp((char *)state->buffer_recv, "POST", 4) == 0)
     {
         debug_printf("TCP Server: Received POST Request\n");
         debug_printf("%s\n", state->buffer_recv);

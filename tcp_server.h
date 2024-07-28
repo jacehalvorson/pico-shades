@@ -6,15 +6,18 @@
 
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
+#include "hardware/rtc.h"
 
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
 
+#include "shades.h"
 #include "utils.h"
 
 #define TCP_PORT 1024
 #define BUF_SIZE 1024
-#define POLL_TIME_SEC 3600
+#define JSON_RESPONSE_SIZE 64
+#define POLL_TIME_SEC ((u8_t)3600)
 
 typedef struct TCP_SERVER_T_
 {
@@ -29,7 +32,7 @@ typedef struct TCP_SERVER_T_
 } TCP_SERVER_T;
 
 static err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
-err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb);
+err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb, size_t len);
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb);
 static void tcp_server_err(void *arg, err_t err);

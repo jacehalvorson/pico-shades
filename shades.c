@@ -43,7 +43,7 @@ int main()
         return 1;
     }
 
-    // tcp_state = tcp_server_open();
+    tcp_state = tcp_server_open();
 
     // Main loop
     while (1)
@@ -65,14 +65,14 @@ int main()
         set_alarm(irq_callback);
 
         // Make sure TCP server is running
-        // if (!tcp_state)
-        // {
-        //     tcp_state = tcp_server_open();
-        //     if (!tcp_state)
-        //     {
-        //         debug_printf("Failed to open TCP server\n");
-        //     }
-        // }
+        if (!tcp_state)
+        {
+            tcp_state = tcp_server_open();
+            if (!tcp_state)
+            {
+                debug_printf("Failed to open TCP server\n");
+            }
+        }
 
         // This iteration is done, reset the flag and turn off LED
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
@@ -83,6 +83,8 @@ int main()
     cyw43_arch_deinit();
     return 0;
 }
+
+// -------------------Shades operations---------------------
 
 void open_shades(void)
 {
@@ -100,6 +102,11 @@ void close_shades(void)
     sleep_ms(MOTOR_DURATION_MS);
     gpio_put(COUNTER_CLOCKWISE_PIN, 0);
     shades_closed = true;
+}
+
+bool are_shades_closed(void)
+{
+    return shades_closed;
 }
 
 // -------------------Callbacks---------------------

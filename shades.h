@@ -55,6 +55,7 @@ int main();
 
 void open_shades(void);
 void close_shades(void);
+bool are_shades_closed(void);
 
 void important_mode_callback(void);
 void irq_callback(void);
