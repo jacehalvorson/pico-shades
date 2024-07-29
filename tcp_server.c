@@ -35,9 +35,9 @@ err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb, size_t len)
 
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
+    http_request_t http_request;
     char json_response[JSON_RESPONSE_SIZE];
     char http_response[BUF_SIZE];
-    datetime_t current_time;
     TCP_SERVER_T *state;
 
     state = (TCP_SERVER_T*)arg;
@@ -60,92 +60,67 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         tcp_recved(tpcb, p->tot_len);
     }
     cyw43_arch_lwip_end();
+    pbuf_free(p);
 
-    if (strncmp((char *)state->buffer_recv, "GET", 3) == 0)
+    debug_printf("\nTCP Server: Received Request:\n%s\n", state->buffer_recv);
+    debug_printf("--------------------------------\n\n");
+    
+    err = parse_http_request(&http_request, (const char*)state->buffer_recv);
+    if (err)
     {
-        debug_printf("TCP Server: Received GET Request\n");
-        debug_printf("%s\n", state->buffer_recv);
-        debug_printf("--------------------------------\n\n");
+        debug_printf("Error %d\n", err);
+        return err;
+    }
+    debug_printf("Type \n", http_request.type);
 
-        // Respond with state of shades (open or closed)
+    switch (http_request.type)
+    {
+    case GET:
+        // Construct JSON with state of shades (open or closed) to send to client
         snprintf(json_response, JSON_RESPONSE_SIZE, "{\"state\": \"%s\"}\n", are_shades_closed() ? "closed" : "open");
 
-        snprintf(
-            http_response, // Add to the end of the string
-            BUF_SIZE, // Remaining space
-            "HTTP/1.1 200 OK\r\n"
-            "Access-Control-Allow-Origin: *\r\n"
-            "Content-Type: application/json\r\n"
-        );
-
-        // Add current date to the HTTP response
-        if (rtc_get_datetime(&current_time))
-        {
-            const char *month_names[] = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-            const char *day_names[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-
-            snprintf(
-                http_response + strlen(http_response), // Add to the end of the string
-                BUF_SIZE - strlen(http_response), // Remaining space
-                "Date: %s, %d %s %d %d:%d:%d CST\r\n",
-                day_names[current_time.dotw],
-                current_time.day,
-                month_names[current_time.month],
-                current_time.year,
-                current_time.hour,
-                current_time.min,
-                current_time.sec
-            );
-        }
-        else
-        {
-            debug_printf("Unable to set date in HTTP response\n");
-            strncat(
-                http_response + strlen(http_response), // Add to the end of the string
-                "Date: Sun, 1 Jan 1970 00:00:00 CST\r\n",
-                BUF_SIZE - strlen(http_response) // Remaining space
-            );
-        }
-
-        snprintf(
-            http_response + strlen(http_response), // Add to the end of the string
-            BUF_SIZE - strlen(http_response), // Remaining space
-            "Server: Shades Machine\r\n"
-            "Content-Length: %d\r\n"
-            "\r\n",
-            strlen(json_response)
-        );
-
-        // Add JSON response to the body of the HTTP response
-        strncat(http_response, json_response, BUF_SIZE - strlen(http_response));
-        debug_printf("HTTP Response:\n%s\n------------------------------\n", http_response);
-
-        // Copy data to the buffer to be sent
-        const size_t buffer_length = MIN(strlen(http_response), BUF_SIZE);
-        for (int i = 0; i < buffer_length; i++)
-        {
-            state->buffer_sent[i] = (uint8_t)http_response[i];
-        }
-
-        // Send the response
-        tcp_server_send_data(state, tpcb, buffer_length);
+        // Format the HTTP response
+        err = format_http_response(http_response, BUF_SIZE, 200, (const char *)json_response);
+        break;
+    case POST:
+        // Format the HTTP response
+        err = format_http_response(http_response, BUF_SIZE, 405, json_response);
+        break;
+    case PUT:
+        // Format the HTTP response
+        err = format_http_response(http_response, BUF_SIZE, 405, json_response);
+        break;
+    case DELETE:
+        // Format the HTTP response
+        err = format_http_response(http_response, BUF_SIZE, 405, json_response);
+        break;
+    default:
+        break;
+        err = ERR_VAL;
     }
-    else if (strncmp((char *)state->buffer_recv, "POST", 4) == 0)
+    if (err)
     {
-        debug_printf("TCP Server: Received POST Request\n");
-        debug_printf("%s\n", state->buffer_recv);
-        debug_printf("--------------------------------\n\n");
+        debug_printf("Error %d\n", err);
+        return err;
     }
-    else
+
+    // Copy data to the buffer to be sent
+    const size_t buffer_length = MIN(strlen(http_response), BUF_SIZE);
+    for (int i = 0; i < buffer_length; i++)
     {
-        debug_printf("TCP Server: Received Unknown Request\n");
-        debug_printf("%s\n", state->buffer_recv);
-        debug_printf("--------------------------------\n\n");
+        state->buffer_sent[i] = (uint8_t)http_response[i];
+    }
+
+    // Send the response
+    err = tcp_server_send_data(state, tpcb, buffer_length);
+    if (err)
+    {
+        debug_printf("Error %d\n", err);
+        return err;
     }
 
     state->run_count++;
     state->recv_len = 0;
-    pbuf_free(p);
     return ERR_OK;
 }
 
@@ -178,7 +153,7 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
     tcp_arg(client_pcb, state);
     tcp_sent(client_pcb, tcp_server_sent);
     tcp_recv(client_pcb, tcp_server_recv);
-    tcp_poll(client_pcb, tcp_server_poll, POLL_TIME_SEC * 2);
+    tcp_poll(client_pcb, tcp_server_poll, UINT8_MAX);
     tcp_err(client_pcb, tcp_server_err);
 
     return ERR_OK;

@@ -11,13 +11,13 @@
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
 
+#include "http.h"
 #include "shades.h"
 #include "utils.h"
 
-#define TCP_PORT 1024
+#define TCP_PORT 80U
 #define BUF_SIZE 1024
 #define JSON_RESPONSE_SIZE 64
-#define POLL_TIME_SEC ((u8_t)3600)
 
 typedef struct TCP_SERVER_T_
 {
