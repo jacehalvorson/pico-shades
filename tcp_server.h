@@ -33,6 +33,7 @@ typedef struct TCP_SERVER_T_
 
 static err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb, size_t len);
+err_t handle_post_parameters(http_request_t http_request);
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb);
 static void tcp_server_err(void *arg, err_t err);

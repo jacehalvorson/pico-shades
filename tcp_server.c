@@ -33,6 +33,37 @@ err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb, size_t len)
     return err;
 }
 
+err_t handle_post_parameters(http_request_t http_request)
+{
+    for (int i = 0; i < http_request.num_parameters; i++)
+    {
+        debug_printf("Parameter %d: %s\n", i, http_request.parameters[i]);
+        if (strncmp(http_request.parameters[i], "open", 4) == 0)
+        {
+            open_shades();
+        }
+        else if (strncmp(http_request.parameters[i], "close", 5) == 0)
+        {
+            close_shades();
+        }
+        else if (strncmp(http_request.parameters[i], "important_mode_on", 17) == 0)
+        {
+            important_mode_on();
+        }
+        else if (strncmp(http_request.parameters[i], "important_mode_off", 18) == 0)
+        {
+            important_mode_off();
+        }
+        else
+        {
+            debug_printf("Unknown parameter %s\n", http_request.parameters[i]);
+            return ERR_VAL;
+        }
+    }
+    
+    return ERR_OK;
+}
+
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
     http_request_t http_request;
@@ -62,6 +93,9 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     cyw43_arch_lwip_end();
     pbuf_free(p);
 
+    state->run_count++;
+    state->recv_len = 0;
+
     debug_printf("\nTCP Server: Received Request:\n%s\n", state->buffer_recv);
     debug_printf("--------------------------------\n\n");
     
@@ -80,19 +114,28 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         snprintf(json_response, JSON_RESPONSE_SIZE, "{\"state\": \"%s\"}\n", are_shades_closed() ? "closed" : "open");
 
         // Format the HTTP response
-        err = format_http_response(http_response, BUF_SIZE, 200, (const char *)json_response);
+        err = format_http_response(http_response, BUF_SIZE, HTTP_OK, (const char *)json_response);
         break;
     case POST:
-        // Format the HTTP response
-        err = format_http_response(http_response, BUF_SIZE, 405, json_response);
+        // Handle the POST parameters
+        err = handle_post_parameters(http_request);
+        if (err)
+        {
+            debug_printf("Error %d\n", err);
+            err = format_http_response(http_response, BUF_SIZE, HTTP_BAD_REQUEST, NULL);
+        }
+        else
+        {
+            err = format_http_response(http_response, BUF_SIZE, HTTP_OK, NULL);
+        }
         break;
     case PUT:
         // Format the HTTP response
-        err = format_http_response(http_response, BUF_SIZE, 405, json_response);
+        err = format_http_response(http_response, BUF_SIZE, HTTP_METHOD_NOT_ALLOWED, NULL);
         break;
     case DELETE:
         // Format the HTTP response
-        err = format_http_response(http_response, BUF_SIZE, 405, json_response);
+        err = format_http_response(http_response, BUF_SIZE, HTTP_METHOD_NOT_ALLOWED, NULL);
         break;
     default:
         break;
@@ -116,12 +159,9 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     if (err)
     {
         debug_printf("Error %d\n", err);
-        return err;
     }
 
-    state->run_count++;
-    state->recv_len = 0;
-    return ERR_OK;
+    return err;
 }
 
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb)

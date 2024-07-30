@@ -86,8 +86,18 @@ int main()
 
 // -------------------Shades operations---------------------
 
+bool are_shades_closed(void)
+{
+    return shades_closed;
+}
+
 void open_shades(void)
 {
+    if (!shades_closed)
+    {
+        debug_printf("Shades already open\n");
+        return;
+    }
     debug_printf("Shades opening\n");
     gpio_put(CLOCKWISE_PIN, 1);
     sleep_ms(MOTOR_DURATION_MS);
@@ -97,6 +107,11 @@ void open_shades(void)
 
 void close_shades(void)
 {
+    if (shades_closed)
+    {
+        debug_printf("Shades already closed\n");
+        return;
+    }
     debug_printf("Shades closing\n");
     gpio_put(COUNTER_CLOCKWISE_PIN, 1);
     sleep_ms(MOTOR_DURATION_MS);
@@ -104,32 +119,40 @@ void close_shades(void)
     shades_closed = true;
 }
 
-bool are_shades_closed(void)
+void important_mode_on(void)
 {
-    return shades_closed;
+    debug_printf("Important mode on\n");
+    important_mode = true;
+}
+
+void important_mode_off(void)
+{
+    debug_printf("Important mode off\n");
+    important_mode = false;
 }
 
 // -------------------Callbacks---------------------
 
-void important_mode_callback(void)
+static void important_mode_callback(void)
 {
     unsigned cycle_count = 0;
 
     // Blink an LED at 6 hz
     start_blinking_led(6);
 
+    if (!shades_closed)
+    {
+        close_shades();
+    }
+
     // Keep spinning the motor back and forth until the button is pressed (or time expires)
     interrupt_fired = false;
     while (!interrupt_fired && cycle_count < (MAX_IMPORTANT_MODE_DURATION_SEC / 2))
     {
-        gpio_put(CLOCKWISE_PIN, 1);
-        sleep_ms(MOTOR_DURATION_MS);
-        gpio_put(CLOCKWISE_PIN, 0);
-        sleep_ms(1000);
-        gpio_put(COUNTER_CLOCKWISE_PIN, 1);
-        sleep_ms(MOTOR_DURATION_MS);
-        gpio_put(COUNTER_CLOCKWISE_PIN, 0);
-        sleep_ms(1000);   
+        open_shades();
+        sleep_ms(500);
+        close_shades();
+        sleep_ms(500);   
         cycle_count++;
     }
 
@@ -137,13 +160,13 @@ void important_mode_callback(void)
 }
 
 // IRQ callback (alarm or GPIO)
-void irq_callback(void)
+static void irq_callback(void)
 {
     interrupt_fired = true;
 }
 
 // Button callback points to the same function as the alarm callback
-void gpio_callback(uint gpio, uint32_t events)
+static void gpio_callback(uint gpio, uint32_t events)
 {
     irq_callback();
 }

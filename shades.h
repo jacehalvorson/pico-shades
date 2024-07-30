@@ -53,12 +53,14 @@ static          bool important_mode = false;
 
 int main();
 
+bool are_shades_closed(void);
 void open_shades(void);
 void close_shades(void);
-bool are_shades_closed(void);
+void important_mode_on(void);
+void important_mode_off(void);
 
-void important_mode_callback(void);
-void irq_callback(void);
-void gpio_callback(uint gpio, uint32_t events);
+static void important_mode_callback(void);
+static void irq_callback(void);
+static void gpio_callback(uint gpio, uint32_t events);
 
 #endif // SHADES_H
