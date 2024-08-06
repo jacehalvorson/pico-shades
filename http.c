@@ -3,7 +3,6 @@
 err_t parse_http_request(http_request_t *destination, const char *http_request)
 {
     err_t err = ERR_OK;
-    char *current_byte_pointer;
 
     if (destination == NULL || http_request == NULL)
     {
@@ -22,38 +21,7 @@ err_t parse_http_request(http_request_t *destination, const char *http_request)
     }
     else if (strncmp(http_request, "POST", 4) == 0)
     {
-        destination->type = POST;
-
-        // Start with 0 parameters
-        destination->num_parameters = 0;
-
-        // Skip to the first first one
-        strtok((char *)http_request, " ");
-
-        // Dummy value
-        current_byte_pointer = http_request;
-
-        // Keep identifying parameters until the string ends, whitespace is found, or we run out of space
-        while (current_byte_pointer != NULL &&
-               destination->num_parameters < MAX_PARAMETERS)
-        {
-            // Check for whitespace
-            if (*current_byte_pointer == ' ' ||
-                *current_byte_pointer == '\r' ||
-                *current_byte_pointer == '\n' ||
-                *current_byte_pointer == '\t')
-            {
-                break;
-            }
-            
-            // Find next parameter or end of string or whitespace
-            current_byte_pointer = strtok(NULL, "/ \r\n");
-            debug_printf("Parameter: %s\n", current_byte_pointer);
-
-            // Add parameter to the struct
-            strncpy(destination->parameters[destination->num_parameters], current_byte_pointer, MAX_STRING_SIZE);
-            destination->num_parameters++;
-        }
+        err = handle_post_request(destination, http_request);
     }
     else if (strncmp(http_request, "PUT", 3) == 0 ||
              strncmp(http_request, "PATCH", 5) == 0)
@@ -91,7 +59,7 @@ err_t format_http_response(char *destination, size_t max_size, int error_code, c
     snprintf(
         destination, // Add to the beginning
         max_size, // Remaining space
-        "HTTP/1.1 %d Bad Request\r\n"
+        "HTTP/1.1 %d\r\n"
         "Access-Control-Allow-Origin: *\r\n",
         error_code
     );
@@ -142,6 +110,56 @@ err_t format_http_response(char *destination, size_t max_size, int error_code, c
     }
 
     debug_printf("HTTP Response:\n%s\n------------------------------\n", destination);
+
+    return ERR_OK;
+}
+
+static err_t handle_post_request(http_request_t *destination, const char *http_request)
+{
+    const char *current_byte_pointer;
+    unsigned char_index = 0;
+
+    destination->type = POST;
+
+    // Start with 0 parameters
+    destination->num_parameters = 0;
+
+    // Start at the second word (e.g., "/open")
+    current_byte_pointer = strstr(http_request, "/");
+
+    // Iterate over string until it ends, whitespace is found, or we run out of space
+    while (++current_byte_pointer != NULL &&
+            *current_byte_pointer != ' ' &&
+            *current_byte_pointer != '\r' &&
+            *current_byte_pointer != '\n' &&
+            *current_byte_pointer != '\t' &&
+            destination->num_parameters < MAX_PARAMETERS)
+    {
+        if (*current_byte_pointer == '/')
+        {
+            // New parameter, find out if there is a previous
+            if (char_index > 0)
+            {
+                // Add null terminator to the previous parameter
+                destination->parameters[destination->num_parameters][char_index] = '\0';
+                debug_printf("\nToken %d: %s\n", destination->num_parameters, destination->parameters[destination->num_parameters]);
+                destination->num_parameters++;
+                char_index = 0;
+            }
+            continue;
+        }
+
+        // Copy this byte to the current parameter
+        destination->parameters[destination->num_parameters][char_index++] = *current_byte_pointer;
+    }
+
+    if (char_index > 0)
+    {
+        // Add null terminator to the last parameter
+        destination->parameters[destination->num_parameters][char_index] = '\0';
+        debug_printf("\nToken %d: %s\n", destination->num_parameters, destination->parameters[destination->num_parameters]);
+        destination->num_parameters++;
+    }
 
     return ERR_OK;
 }

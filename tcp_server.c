@@ -105,7 +105,6 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         debug_printf("Error %d\n", err);
         return err;
     }
-    debug_printf("Type \n", http_request.type);
 
     switch (http_request.type)
     {
