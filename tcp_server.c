@@ -46,13 +46,26 @@ err_t handle_post_parameters(http_request_t http_request)
         {
             close_shades();
         }
-        else if (strncmp(http_request.parameters[i], "important_mode_on", 17) == 0)
+        else if (strncmp(http_request.parameters[i], "mode", 4) == 0)
         {
-            important_mode_on();
-        }
-        else if (strncmp(http_request.parameters[i], "important_mode_off", 18) == 0)
-        {
-            important_mode_off();
+            if (http_request.num_parameters <= i + 1)
+            {
+                debug_printf("No mode specified\n");
+                return ERR_VAL;
+            }
+            else if (strncmp(http_request.parameters[i + 1], "normal", 6) == 0)
+            {
+                important_mode_off();
+            }
+            else if (strncmp(http_request.parameters[i + 1], "important", 9) == 0)
+            {
+                important_mode_on();
+            }
+            else
+            {
+                debug_printf("Unknown mode %s\n", http_request.parameters[i]);
+                return ERR_VAL;
+            }
         }
         else
         {
