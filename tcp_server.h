@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"

@@ -46,7 +46,6 @@ err_t parse_http_request(http_request_t *destination, const char *http_request)
 err_t format_http_response(char *destination, size_t max_size, int error_code, const char *json_object)
 {
     datetime_t current_time;
-    char error_code_string[MAX_STRING_SIZE+1] = " ";
 
     if (destination == NULL)
     {
@@ -117,14 +116,13 @@ err_t format_http_response(char *destination, size_t max_size, int error_code, c
 static err_t handle_post_request(http_request_t *destination, const char *http_request)
 {
     const char *current_byte_pointer;
-    unsigned char_index = 0;
+    int byte_index = 0;
 
+    // Start with a 0 parameters
     destination->type = POST;
-
-    // Start with 0 parameters
     destination->num_parameters = 0;
 
-    // Start at the second word (e.g., "/open")
+    // Start at the second word (e.g., "/open", the slash will be skipped in the first iteration)")
     current_byte_pointer = strstr(http_request, "/");
 
     // Iterate over string until it ends, whitespace is found, or we run out of space
@@ -133,31 +131,36 @@ static err_t handle_post_request(http_request_t *destination, const char *http_r
             *current_byte_pointer != '\r' &&
             *current_byte_pointer != '\n' &&
             *current_byte_pointer != '\t' &&
-            destination->num_parameters < MAX_PARAMETERS)
+            destination->num_parameters < MAX_PARAMETERS &&
+            byte_index < MAX_STRING_SIZE )
     {
+        // For a slash, transition to the following word
         if (*current_byte_pointer == '/')
         {
-            // New parameter, find out if there is a previous
-            if (char_index > 0)
+            // Check there is a previous
+            if (byte_index > 0)
             {
                 // Add null terminator to the previous parameter
-                destination->parameters[destination->num_parameters][char_index] = '\0';
-                debug_printf("\nToken %d: %s\n", destination->num_parameters, destination->parameters[destination->num_parameters]);
+                destination->parameters[destination->num_parameters][byte_index] = '\0';
+                // Increment the number of parameters
                 destination->num_parameters++;
-                char_index = 0;
+                // Reset index for next parameter
+                byte_index = 0;
             }
             continue;
         }
 
         // Copy this byte to the current parameter
-        destination->parameters[destination->num_parameters][char_index++] = *current_byte_pointer;
+        destination->parameters[destination->num_parameters][byte_index] = *current_byte_pointer;
+
+        // Increment character index for the current parameter
+        byte_index++;
     }
 
-    if (char_index > 0)
+    if (byte_index > 0)
     {
         // Add null terminator to the last parameter
-        destination->parameters[destination->num_parameters][char_index] = '\0';
-        debug_printf("\nToken %d: %s\n", destination->num_parameters, destination->parameters[destination->num_parameters]);
+        destination->parameters[destination->num_parameters][byte_index] = '\0';
         destination->num_parameters++;
     }
 

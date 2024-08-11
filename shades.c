@@ -54,7 +54,7 @@ int main()
             __wfi();
         }
 
-        if (important_mode)
+        if (shades_mode == IMPORTANT)
             important_mode_callback();
         else if (shades_closed)
             open_shades();
@@ -98,11 +98,27 @@ void open_shades(void)
         debug_printf("Shades already open\n");
         return;
     }
+
     debug_printf("Shades opening\n");
     gpio_put(CLOCKWISE_PIN, 1);
-    sleep_ms(MOTOR_DURATION_MS);
+
+    // Set a timer to disable the motor
+    
+    if (add_alarm_in_ms(MOTOR_DURATION_MS, (alarm_callback_t)open_shades_finish, NULL, true) <= 0)
+    {
+        debug_printf("Failed to add open timer\n");
+        gpio_put(CLOCKWISE_PIN, 0);
+    }
+}
+
+static int64_t open_shades_finish(alarm_id_t id, void *user_data)
+{
+    // Disable motor and update shades state to open
     gpio_put(CLOCKWISE_PIN, 0);
     shades_closed = false;
+
+    // Return 0 to not repeat
+    return 0;
 }
 
 void close_shades(void)
@@ -112,23 +128,37 @@ void close_shades(void)
         debug_printf("Shades already closed\n");
         return;
     }
+
     debug_printf("Shades closing\n");
     gpio_put(COUNTER_CLOCKWISE_PIN, 1);
-    sleep_ms(MOTOR_DURATION_MS);
+
+    // Set a timer to disable the motor
+    if (add_alarm_in_ms(MOTOR_DURATION_MS, (alarm_callback_t)close_shades_finish, NULL, true) <= 0)
+    {
+        debug_printf("Failed to add close timer\n");
+        gpio_put(CLOCKWISE_PIN, 0);
+    }
+}
+
+static int64_t close_shades_finish(alarm_id_t id, void *user_data)
+{
+    // Disable motor and update shades state to closed
     gpio_put(COUNTER_CLOCKWISE_PIN, 0);
     shades_closed = true;
+    
+    // Return 0 to not repeat
+    return 0;
 }
 
-void important_mode_on(void)
+void set_mode(shades_mode_t new_mode)
 {
-    debug_printf("Important mode on\n");
-    important_mode = true;
+    shades_mode = new_mode;
+    debug_printf("shades_mode set to %d\n", shades_mode);
 }
 
-void important_mode_off(void)
+shades_mode_t get_mode(void)
 {
-    debug_printf("Important mode off\n");
-    important_mode = false;
+    return shades_mode;
 }
 
 // -------------------Callbacks---------------------
@@ -159,7 +189,7 @@ static void important_mode_callback(void)
     stop_blinking_led();
 }
 
-// IRQ callback (alarm or GPIO)
+// IRQ callback to indicate an interrupt happened from various sources (alarm, GPIO, timer)
 static void irq_callback(void)
 {
     interrupt_fired = true;

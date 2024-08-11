@@ -35,43 +35,136 @@ err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb, size_t len)
 
 err_t handle_post_parameters(http_request_t http_request)
 {
-    for (int i = 0; i < http_request.num_parameters; i++)
+    datetime_t alarm_time = {-1, -1, -1, -1, -1, -1, -1};
+    char alarm_time_buffer[4];
+    int parameter_index = 0;
+    char *endptr;
+
+    if (http_request.num_parameters < 1)
     {
-        debug_printf("Parameter %d: %s\n", i, http_request.parameters[i]);
-        if (strncmp(http_request.parameters[i], "open", 4) == 0)
+        debug_printf("No parameters\n");
+        return ERR_VAL;
+    }
+
+    if (strncmp(http_request.parameters[parameter_index], "open", 4) == 0)
+    {
+        open_shades();
+        return ERR_OK;
+    }
+    if (strncmp(http_request.parameters[parameter_index], "close", 5) == 0)
+    {
+        close_shades();
+        return ERR_OK;
+    }
+    
+    if (strncmp(http_request.parameters[parameter_index], "mode", 4) == 0)
+    {
+        parameter_index++;
+        if (http_request.num_parameters < 2)
         {
-            open_shades();
+            debug_printf("No mode specified\n");
+            return ERR_VAL;
         }
-        else if (strncmp(http_request.parameters[i], "close", 5) == 0)
+        else if (strncmp(http_request.parameters[parameter_index], "normal", 6) == 0)
         {
-            close_shades();
+            set_mode(NORMAL);
         }
-        else if (strncmp(http_request.parameters[i], "mode", 4) == 0)
+        else if (strncmp(http_request.parameters[parameter_index], "important", 9) == 0)
         {
-            if (http_request.num_parameters <= i + 1)
-            {
-                debug_printf("No mode specified\n");
-                return ERR_VAL;
-            }
-            else if (strncmp(http_request.parameters[i + 1], "normal", 6) == 0)
-            {
-                important_mode_off();
-            }
-            else if (strncmp(http_request.parameters[i + 1], "important", 9) == 0)
-            {
-                important_mode_on();
-            }
-            else
-            {
-                debug_printf("Unknown mode %s\n", http_request.parameters[i]);
-                return ERR_VAL;
-            }
+            set_mode(IMPORTANT);
         }
         else
         {
-            debug_printf("Unknown parameter %s\n", http_request.parameters[i]);
+            debug_printf("Unknown mode\n");
             return ERR_VAL;
         }
+    }
+    else if (strncmp(http_request.parameters[parameter_index], "alarm", 5) == 0)
+    {
+        parameter_index++;
+        if (http_request.num_parameters < 2)
+        {
+            debug_printf("No alarm time specified\n");
+            return ERR_VAL;
+        }
+        if (strlen(http_request.parameters[parameter_index]) != 6)
+        {
+            debug_printf("Time is the wrong length\n");
+            return ERR_VAL;
+        }
+
+        // Parse the hour (e.g., ""22" from "223000")
+        strncpy(alarm_time_buffer, http_request.parameters[parameter_index], 2);
+        alarm_time_buffer[2] = '\0';
+        debug_printf("Hour %s\n", alarm_time_buffer);
+        errno = 0;
+        alarm_time.hour = strtol(alarm_time_buffer, &endptr, 10);
+        if ( errno ||
+             endptr == alarm_time_buffer ||
+             alarm_time.hour < 0 ||
+             alarm_time.hour > 23 )
+        {
+            debug_printf("Error parsing hour\n");
+            return ERR_VAL;
+        }
+
+        // Parse the minute (e.g., "30" from "223000")
+        strncpy(alarm_time_buffer, &http_request.parameters[parameter_index][2], 2);
+        alarm_time_buffer[2] = '\0';
+        debug_printf("Minute %s\n", alarm_time_buffer);
+        errno = 0;
+        alarm_time.min = strtol(alarm_time_buffer, &endptr, 10);
+        if ( errno ||
+             endptr == alarm_time_buffer ||
+             alarm_time.min < 0 ||
+             alarm_time.min > 59 )
+        {
+            debug_printf("Error parsing minute\n");
+            return ERR_VAL;
+        }
+
+        // Parse the second (e.g., "00" from "223000")
+        strncpy(alarm_time_buffer, &http_request.parameters[parameter_index][4], 2);
+        alarm_time_buffer[2] = '\0';
+        debug_printf("Second %s\n", alarm_time_buffer);
+        errno = 0;
+        alarm_time.sec = strtol(alarm_time_buffer, &endptr, 10);
+        if ( errno ||
+             endptr == alarm_time_buffer ||
+             alarm_time.sec < 0 ||
+             alarm_time.sec > 59 )
+        {
+            debug_printf("Error parsing second\n");
+            return ERR_VAL;
+        }
+
+        // Parse type of alarm (open or close)
+        parameter_index++;
+        if (http_request.num_parameters < 3)
+        {
+            debug_printf("No alarm type specified\n");
+            return ERR_VAL;
+        }
+        else if (strncmp(http_request.parameters[parameter_index], "open", 4) == 0)
+        {
+            debug_printf("Setting alarm for %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
+            rtc_set_alarm(&alarm_time, (rtc_callback_t)&open_shades);
+        }
+        else if (strncmp(http_request.parameters[parameter_index], "close", 5) == 0)
+        {
+            debug_printf("Setting alarm for %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
+            rtc_set_alarm(&alarm_time, (rtc_callback_t)&close_shades);
+        }
+        else
+        {
+            debug_printf("Unknown alarm type %s\n", http_request.parameters[parameter_index]);
+            return ERR_VAL;
+        }
+    }
+    else
+    {
+        debug_printf("Unknown parameter %s\n", http_request.parameters[parameter_index]);
+        return ERR_VAL;
     }
     
     return ERR_OK;
@@ -122,24 +215,32 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     switch (http_request.type)
     {
     case GET:
-        // Construct JSON with state of shades (open or closed) to send to client
-        snprintf(json_response, JSON_RESPONSE_SIZE, "{\"state\": \"%s\"}\n", are_shades_closed() ? "closed" : "open");
+        // Construct JSON with state of shades (open or closed) and mode and send to client
+        snprintf(json_response,
+                 JSON_RESPONSE_SIZE,
+                 "{\"state\": \"%s\"}\n"
+                 "{\"mode\": \"%s\"}\n",
+                 are_shades_closed() ? "closed" : "open",
+                 shades_mode == NORMAL ? "normal" : "important");
 
         // Format the HTTP response
         err = format_http_response(http_response, BUF_SIZE, HTTP_OK, (const char *)json_response);
         break;
     case POST:
-        // Handle the POST parameters
+        // Handle the POST parameters (e.g., open or close)
         err = handle_post_parameters(http_request);
         if (err)
         {
+            // Respond with 400 Bad request
             debug_printf("Error %d\n", err);
             err = format_http_response(http_response, BUF_SIZE, HTTP_BAD_REQUEST, NULL);
         }
         else
         {
+            // Respond with 200 OK
             err = format_http_response(http_response, BUF_SIZE, HTTP_OK, NULL);
         }
+
         break;
     case PUT:
         // Format the HTTP response
@@ -150,11 +251,11 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         err = format_http_response(http_response, BUF_SIZE, HTTP_METHOD_NOT_ALLOWED, NULL);
         break;
     default:
-        break;
-        err = ERR_VAL;
+        err = format_http_response(http_response, BUF_SIZE, HTTP_BAD_REQUEST, NULL);
     }
     if (err)
     {
+        // Unrecognized method, respond with 400 Bad request
         debug_printf("Error %d\n", err);
         return err;
     }

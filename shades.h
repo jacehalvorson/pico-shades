@@ -27,12 +27,22 @@
 
 #define NUM_PINS                       5
 
+// -------------------Global Data-------------------
+
 typedef struct pin_t
 {
     int number;
     int direction;
     int default_value;
 } pin_t;
+
+typedef enum shades_mode_t
+{
+    NORMAL,
+    IMPORTANT
+} shades_mode_t;
+
+// -------------------Constants---------------------
 
 static const pin_t pin_definitions[NUM_PINS] =
 {
@@ -47,7 +57,7 @@ static const pin_t pin_definitions[NUM_PINS] =
 
 static volatile bool interrupt_fired = false;
 static volatile bool shades_closed = true;
-static          bool important_mode = false;
+static volatile shades_mode_t shades_mode = NORMAL;
 
 // -------------------Functions---------------------
 
@@ -55,9 +65,11 @@ int main();
 
 bool are_shades_closed(void);
 void open_shades(void);
+static int64_t open_shades_finish(alarm_id_t id, void *user_data);
 void close_shades(void);
-void important_mode_on(void);
-void important_mode_off(void);
+static int64_t close_shades_finish(alarm_id_t id, void *user_data);
+shades_mode_t get_mode(void);
+void set_mode(shades_mode_t shades_mode);
 
 static void important_mode_callback(void);
 static void irq_callback(void);

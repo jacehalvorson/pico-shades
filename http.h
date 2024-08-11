@@ -29,7 +29,7 @@ typedef struct http_request_t
 {
     http_request_type type;
     unsigned int num_parameters;
-    char parameters[MAX_PARAMETERS][MAX_STRING_SIZE+1];
+    char parameters[MAX_PARAMETERS][MAX_STRING_SIZE];
 } http_request_t;
 
 err_t parse_http_request(http_request_t *destination, const char *http_request_buffer);
