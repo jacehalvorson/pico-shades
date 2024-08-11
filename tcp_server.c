@@ -46,18 +46,18 @@ err_t handle_post_parameters(http_request_t http_request)
         return ERR_VAL;
     }
 
-    if (strncmp(http_request.parameters[parameter_index], "open", 4) == 0)
+    if (strcmp(http_request.parameters[parameter_index], "open") == 0)
     {
         open_shades();
         return ERR_OK;
     }
-    if (strncmp(http_request.parameters[parameter_index], "close", 5) == 0)
+    if (strcmp(http_request.parameters[parameter_index], "close") == 0)
     {
         close_shades();
         return ERR_OK;
     }
     
-    if (strncmp(http_request.parameters[parameter_index], "mode", 4) == 0)
+    if (strcmp(http_request.parameters[parameter_index], "mode") == 0)
     {
         parameter_index++;
         if (http_request.num_parameters < 2)
@@ -65,11 +65,11 @@ err_t handle_post_parameters(http_request_t http_request)
             debug_printf("No mode specified\n");
             return ERR_VAL;
         }
-        else if (strncmp(http_request.parameters[parameter_index], "normal", 6) == 0)
+        else if (strcmp(http_request.parameters[parameter_index], "normal") == 0)
         {
             set_mode(NORMAL);
         }
-        else if (strncmp(http_request.parameters[parameter_index], "important", 9) == 0)
+        else if (strcmp(http_request.parameters[parameter_index], "important") == 0)
         {
             set_mode(IMPORTANT);
         }
@@ -79,7 +79,7 @@ err_t handle_post_parameters(http_request_t http_request)
             return ERR_VAL;
         }
     }
-    else if (strncmp(http_request.parameters[parameter_index], "alarm", 5) == 0)
+    else if (strcmp(http_request.parameters[parameter_index], "alarm") == 0)
     {
         parameter_index++;
         if (http_request.num_parameters < 2)
@@ -145,15 +145,15 @@ err_t handle_post_parameters(http_request_t http_request)
             debug_printf("No alarm type specified\n");
             return ERR_VAL;
         }
-        else if (strncmp(http_request.parameters[parameter_index], "open", 4) == 0)
+        else if (strcmp(http_request.parameters[parameter_index], "open") == 0)
         {
-            debug_printf("Setting alarm for %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
-            rtc_set_alarm(&alarm_time, (rtc_callback_t)&open_shades);
+            debug_printf("Setting open alarm to %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
+            set_alarm_time(&alarm_time, 0);
         }
-        else if (strncmp(http_request.parameters[parameter_index], "close", 5) == 0)
+        else if (strcmp(http_request.parameters[parameter_index], "close") == 0)
         {
-            debug_printf("Setting alarm for %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
-            rtc_set_alarm(&alarm_time, (rtc_callback_t)&close_shades);
+            debug_printf("Setting close alarm to %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
+            set_alarm_time(&alarm_time, 1);
         }
         else
         {

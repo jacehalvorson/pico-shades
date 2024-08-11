@@ -26,7 +26,7 @@ int main()
     gpio_put(CLOCKWISE_PIN, 1);
     sleep_ms(500);
     gpio_put(CLOCKWISE_PIN, 0);
-    shades_closed = true;
+    shades_state = SHADES_CLOSED;
 
     debug_printf("Connecting to Wi-Fi network '%s'...\n", WIFI_SSID);
     if (connect_to_wifi(WIFI_SSID, WIFI_PASSWORD))
@@ -37,12 +37,9 @@ int main()
 
     debug_printf("Setting IRQs for the button and alarm\n");
     gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
-    if (set_alarm(irq_callback))
-    {
-        debug_printf("Failed to set alarm\n");
-        return 1;
-    }
+    set_alarm(irq_callback);
 
+    // Spinning up HTTP server
     tcp_state = tcp_server_open();
 
     // Main loop
@@ -54,12 +51,38 @@ int main()
             __wfi();
         }
 
-        if (shades_mode == IMPORTANT)
+        switch (shades_mode)
+        {
+        case NORMAL:
+            debug_printf("Normal mode\n");
+            switch (shades_next_action)
+            {
+            case OPEN_SHADES:
+                open_shades();
+                break;
+            case CLOSE_SHADES:
+                close_shades();
+                break;
+            case TOGGLE:
+                if (shades_state == SHADES_OPEN)
+                    close_shades();
+                else
+                    open_shades();
+                break;
+            default:
+                debug_printf("Invalid next action %d\n", shades_next_action);
+                break;
+            }
+
+            break;
+        case IMPORTANT:
+            debug_printf("Important mode\n");
             important_mode_callback();
-        else if (shades_closed)
-            open_shades();
-        else
-            close_shades();
+            break;
+        default:
+            debug_printf("Invalid mode %d\n", shades_mode);
+            break;
+        }
 
         // Set the next alarm
         set_alarm(irq_callback);
@@ -74,7 +97,7 @@ int main()
             }
         }
 
-        // This iteration is done, reset the flag and turn off LED
+        // This iteration is done, reset the flag and make sure LED is off
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         interrupt_fired = false;
     }
@@ -88,12 +111,12 @@ int main()
 
 bool are_shades_closed(void)
 {
-    return shades_closed;
+    return shades_state == SHADES_CLOSED;
 }
 
 void open_shades(void)
 {
-    if (!shades_closed)
+    if (shades_state == SHADES_OPEN)
     {
         debug_printf("Shades already open\n");
         return;
@@ -101,29 +124,15 @@ void open_shades(void)
 
     debug_printf("Shades opening\n");
     gpio_put(CLOCKWISE_PIN, 1);
-
-    // Set a timer to disable the motor
-    
-    if (add_alarm_in_ms(MOTOR_DURATION_MS, (alarm_callback_t)open_shades_finish, NULL, true) <= 0)
-    {
-        debug_printf("Failed to add open timer\n");
-        gpio_put(CLOCKWISE_PIN, 0);
-    }
-}
-
-static int64_t open_shades_finish(alarm_id_t id, void *user_data)
-{
-    // Disable motor and update shades state to open
+    sleep_ms(MOTOR_DURATION_MS);
     gpio_put(CLOCKWISE_PIN, 0);
-    shades_closed = false;
 
-    // Return 0 to not repeat
-    return 0;
+    shades_state = SHADES_OPEN;
 }
 
 void close_shades(void)
 {
-    if (shades_closed)
+    if (shades_state == SHADES_CLOSED)
     {
         debug_printf("Shades already closed\n");
         return;
@@ -131,23 +140,10 @@ void close_shades(void)
 
     debug_printf("Shades closing\n");
     gpio_put(COUNTER_CLOCKWISE_PIN, 1);
-
-    // Set a timer to disable the motor
-    if (add_alarm_in_ms(MOTOR_DURATION_MS, (alarm_callback_t)close_shades_finish, NULL, true) <= 0)
-    {
-        debug_printf("Failed to add close timer\n");
-        gpio_put(CLOCKWISE_PIN, 0);
-    }
-}
-
-static int64_t close_shades_finish(alarm_id_t id, void *user_data)
-{
-    // Disable motor and update shades state to closed
+    sleep_ms(MOTOR_DURATION_MS);
     gpio_put(COUNTER_CLOCKWISE_PIN, 0);
-    shades_closed = true;
-    
-    // Return 0 to not repeat
-    return 0;
+
+    shades_state = SHADES_CLOSED;
 }
 
 void set_mode(shades_mode_t new_mode)
@@ -161,27 +157,32 @@ shades_mode_t get_mode(void)
     return shades_mode;
 }
 
+void set_next_action(shades_action_t action)
+{
+    shades_next_action = action;
+}
+
 // -------------------Callbacks---------------------
 
 static void important_mode_callback(void)
 {
-    unsigned cycle_count = 0;
+    int cycle_count = 0;
 
     // Blink an LED at 6 hz
     start_blinking_led(6);
 
-    if (!shades_closed)
+    if (shades_state == SHADES_CLOSED)
     {
-        close_shades();
+        open_shades();
     }
 
     // Keep spinning the motor back and forth until the button is pressed (or time expires)
     interrupt_fired = false;
-    while (!interrupt_fired && cycle_count < (MAX_IMPORTANT_MODE_DURATION_SEC / 2))
+    while (!interrupt_fired && cycle_count < MAX_IMPORTANT_MODE_CYCLES)
     {
-        open_shades();
-        sleep_ms(500);
         close_shades();
+        sleep_ms(500);
+        open_shades();
         sleep_ms(500);   
         cycle_count++;
     }
@@ -195,8 +196,9 @@ static void irq_callback(void)
     interrupt_fired = true;
 }
 
-// Button callback points to the same function as the alarm callback
+// Button callback
 static void gpio_callback(uint gpio, uint32_t events)
 {
+    set_next_action(TOGGLE);
     irq_callback();
 }

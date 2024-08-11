@@ -14,18 +14,18 @@
 
 // -------------------Constants---------------------
 
-#define MOTOR_DURATION_MS               2800
-#define MAX_IMPORTANT_MODE_DURATION_SEC 60
+#define MOTOR_DURATION_MS         2800
+#define MAX_IMPORTANT_MODE_CYCLES 10
 
 // -------------------Pins--------------------------
 
-#define CLOCKWISE_PIN                  0
-#define COUNTER_CLOCKWISE_PIN          1
-#define MOTOR_ENABLE_PIN               2
-#define BUTTON_PIN                     3
-#define BUTTON_ENABLE_PIN              22
+#define CLOCKWISE_PIN             0
+#define COUNTER_CLOCKWISE_PIN     1
+#define MOTOR_ENABLE_PIN          2
+#define BUTTON_PIN                3
+#define BUTTON_ENABLE_PIN         22
 
-#define NUM_PINS                       5
+#define NUM_PINS                  5
 
 // -------------------Global Data-------------------
 
@@ -36,11 +36,25 @@ typedef struct pin_t
     int default_value;
 } pin_t;
 
+typedef enum shades_state_t
+{
+    SHADES_OPEN,
+    SHADES_CLOSED
+} shades_state_t;
+
 typedef enum shades_mode_t
 {
     NORMAL,
     IMPORTANT
 } shades_mode_t;
+
+typedef enum shades_action_t
+{
+    OPEN_SHADES,
+    CLOSE_SHADES,
+    TOGGLE,
+    REPEAT_TOGGLE
+} shades_action_t;
 
 // -------------------Constants---------------------
 
@@ -56,8 +70,9 @@ static const pin_t pin_definitions[NUM_PINS] =
 // -------------------Global Data-------------------
 
 static volatile bool interrupt_fired = false;
-static volatile bool shades_closed = true;
+static volatile shades_state_t shades_state;
 static volatile shades_mode_t shades_mode = NORMAL;
+static volatile shades_action_t shades_next_action;
 
 // -------------------Functions---------------------
 
@@ -65,11 +80,10 @@ int main();
 
 bool are_shades_closed(void);
 void open_shades(void);
-static int64_t open_shades_finish(alarm_id_t id, void *user_data);
 void close_shades(void);
-static int64_t close_shades_finish(alarm_id_t id, void *user_data);
 shades_mode_t get_mode(void);
 void set_mode(shades_mode_t shades_mode);
+void set_next_action(shades_action_t action);
 
 static void important_mode_callback(void);
 static void irq_callback(void);
