@@ -70,9 +70,12 @@ static const pin_t pin_definitions[NUM_PINS] =
 // -------------------Global Data-------------------
 
 static volatile bool interrupt_fired = false;
+static volatile bool shades_toggle_queued;
+static volatile bool shades_open_queued;
+static volatile bool shades_closed_queued;
+static volatile bool important_mode_queued;
 static volatile shades_state_t shades_state;
 static volatile shades_mode_t shades_mode = NORMAL;
-static volatile shades_action_t shades_next_action;
 
 // -------------------Functions---------------------
 
@@ -83,10 +86,12 @@ void open_shades(void);
 void close_shades(void);
 shades_mode_t get_mode(void);
 void set_mode(shades_mode_t shades_mode);
-void set_next_action(shades_action_t action);
+void queue_open_shades(void);
+void queue_closed_shades(void);
 
 static void important_mode_callback(void);
 static void irq_callback(void);
 static void gpio_callback(uint gpio, uint32_t events);
+static int64_t turn_off_motor_callback(alarm_id_t id, __unused void *user_data);
 
 #endif // SHADES_H

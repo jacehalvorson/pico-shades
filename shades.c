@@ -20,8 +20,7 @@ int main()
     debug_printf("Initializing motor position");
     // Find the closed position
     gpio_put(COUNTER_CLOCKWISE_PIN, 1);
-    sleep_ms(MOTOR_DURATION_MS);
-    gpio_put(COUNTER_CLOCKWISE_PIN, 0);
+    add_alarm_in_ms(MOTOR_DURATION_MS, turn_off_motor_callback, NULL, false);
     shades_state = SHADES_CLOSED;
 
     debug_printf("Connecting to Wi-Fi network '%s'...\n", WIFI_SSID);
@@ -44,44 +43,39 @@ int main()
         debug_printf("Waiting for button press or alarm...\n");
         while (!interrupt_fired)
         {
-            __wfi();
+            tight_loop_contents();
         }
 
-        switch (shades_mode)
-        {
-        case NORMAL:
-            debug_printf("Normal mode\n");
-            switch (shades_next_action)
-            {
-            case OPEN_SHADES:
-                open_shades();
-                break;
-            case CLOSE_SHADES:
-                close_shades();
-                break;
-            case TOGGLE:
-                if (shades_state == SHADES_OPEN)
-                    close_shades();
-                else
-                    open_shades();
-                break;
-            default:
-                debug_printf("Invalid next action %d\n", shades_next_action);
-                break;
-            }
+        debug_printf("Interrupt fired\n");
 
-            break;
-        case IMPORTANT:
+        if (shades_toggle_queued)
+        {
+            if (shades_state == SHADES_OPEN)
+                close_shades();
+            else
+                open_shades();
+        }
+        else if (shades_open_queued)
+        {
+            open_shades();
+        }
+        else if (shades_closed_queued)
+        {
+            close_shades();
+        }
+        else if (important_mode_queued)
+        {
             debug_printf("Important mode\n");
             important_mode_callback();
-            break;
-        default:
-            debug_printf("Invalid mode %d\n", shades_mode);
-            break;
         }
 
+        shades_toggle_queued = false;
+        shades_open_queued = false;
+        shades_closed_queued = false;
+        important_mode_queued = false;
+
         // Set the next alarm
-        set_alarm(irq_callback);
+        set_alarm();
 
         // Make sure TCP server is running
         if (!tcp_state)
@@ -153,11 +147,6 @@ shades_mode_t get_mode(void)
     return shades_mode;
 }
 
-void set_next_action(shades_action_t action)
-{
-    shades_next_action = action;
-}
-
 // -------------------Callbacks---------------------
 
 static void important_mode_callback(void)
@@ -195,6 +184,40 @@ static void irq_callback(void)
 // Button callback
 static void gpio_callback(uint gpio, uint32_t events)
 {
-    set_next_action(TOGGLE);
+    if (shades_mode == IMPORTANT)
+    {
+        important_mode_queued = true;
+    }
+    else
+    {
+        shades_toggle_queued = true;
+    }
+
     irq_callback();
+}
+
+void queue_open_shades(void)
+{
+    if (shades_mode == IMPORTANT)
+    {
+        important_mode_queued = true;
+    }
+    else
+    {
+        shades_open_queued = true;
+    }
+
+    irq_callback();
+}
+
+void queue_closed_shades(void)
+{
+    shades_closed_queued = true;
+    irq_callback();
+}
+
+int64_t turn_off_motor_callback(alarm_id_t id, __unused void *user_data)
+{
+    gpio_put(COUNTER_CLOCKWISE_PIN, 0);
+    return 0;
 }

@@ -1,5 +1,8 @@
 #include "utils.h"
 
+volatile int blinking_led_on = 0;
+repeating_timer_t led_blink_timer;
+
 // -------------------Wi-Fi Functions-------------------
 
 int connect_to_wifi(char *wifi_ssid, char *wifi_password)

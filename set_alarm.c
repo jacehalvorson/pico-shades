@@ -1,19 +1,32 @@
 #include "set_alarm.h"
 
-void set_alarm(void (*irq_callback)(void))
+// Until the user requests a specific time,
+// open shades at 7 AM by default
+datetime_t open_time = {
+    .year  = -1,
+    .month = -1,
+    .day   = -1,
+    .dotw  = -1,
+    .hour  = 7,
+    .min   = 0,
+    .sec   = 0
+};
+
+// Until the user requests a specific time,
+// close shades at 4:30 PM by default
+datetime_t close_time = {
+    .year  = -1,
+    .month = -1,
+    .day   = -1,
+    .dotw  = -1,
+    .hour  = 16,
+    .min   = 30,
+    .sec   = 0
+};
+
+void set_alarm()
 {
     datetime_t current_time;
-
-    // Set to parameter if not NULL, otherwise keep the previous callback
-    void (*alarm_callback)(void) = (irq_callback != NULL)
-                                    ? irq_callback
-                                    : previous_alarm_callback;
-
-    if (alarm_callback == NULL)
-    {
-        debug_printf("Invalid alarm callback\n");
-        return;
-    }
     
     if (!rtc_running())
     {
@@ -24,21 +37,25 @@ void set_alarm(void (*irq_callback)(void))
     // Get current time
     rtc_get_datetime(&current_time);
     
-    // If it's in between open time and close time, set the alarm for close time
-    if (current_time.hour >= open_time.hour && current_time.hour < close_time.hour)
-    {
-        debug_printf("Setting alarm for %02d:%02d:%02d\n", close_time.hour, close_time.min, close_time.sec);
-        rtc_set_alarm(&close_time, (rtc_callback_t)alarm_callback);
-        set_next_action(CLOSE_SHADES);
-    }
-    else // Otherwise, set the alarm for open time
-    {
-        debug_printf("Setting alarm for %02d:%02d:%02d\n", open_time.hour, open_time.min, open_time.sec);
-        rtc_set_alarm(&open_time, (rtc_callback_t)alarm_callback);
-        set_next_action(OPEN_SHADES);
-    }
+    bool after_open = (current_time.hour > open_time.hour) ||
+                      (current_time.hour == open_time.hour && current_time.min > open_time.min) ||
+                      (current_time.hour == open_time.hour && current_time.min == open_time.min && current_time.sec > open_time.sec);
 
-    previous_alarm_callback = alarm_callback;
+    bool after_close = (current_time.hour > close_time.hour) ||
+                       (current_time.hour == close_time.hour && current_time.min > close_time.min) ||
+                       (current_time.hour == close_time.hour && current_time.min == close_time.min && current_time.sec > close_time.sec);
+
+    // If it's in between open time and close time, set the alarm for close time
+    if (after_open && !after_close)
+    {
+        debug_printf("Setting close alarm for %02d:%02d:%02d\n", close_time.hour, close_time.min, close_time.sec);
+        rtc_set_alarm(&close_time, (rtc_callback_t)queue_closed_shades);
+    }
+    else // Otherwise, set the alarm for open time (either before open or after close)
+    {
+        debug_printf("Setting open alarm for %02d:%02d:%02d\n", open_time.hour, open_time.min, open_time.sec);
+        rtc_set_alarm(&open_time, (rtc_callback_t)queue_open_shades);
+    }
 }
 
 void set_alarm_time(const datetime_t *alarm_time, int alarm_type)
@@ -70,6 +87,5 @@ void set_alarm_time(const datetime_t *alarm_time, int alarm_type)
     }
 
     // Replace current alarm with the new time.
-    // The NULL option keeps the previous alarm callback
-    set_alarm(NULL);
+    set_alarm();
 }

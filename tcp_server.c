@@ -147,12 +147,12 @@ err_t handle_post_parameters(http_request_t http_request)
         }
         else if (strcmp(http_request.parameters[parameter_index], "open") == 0)
         {
-            debug_printf("Setting open alarm to %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
+            debug_printf("Received request to set open alarm to %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
             set_alarm_time(&alarm_time, 0);
         }
         else if (strcmp(http_request.parameters[parameter_index], "close") == 0)
         {
-            debug_printf("Setting close alarm to %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
+            debug_printf("Received request to set close alarm to %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
             set_alarm_time(&alarm_time, 1);
         }
         else
