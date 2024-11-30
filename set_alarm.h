@@ -20,14 +20,14 @@ static datetime_t open_time = {
 };
 
 // Until the user requests a specific time,
-// close shades at 7 PM by default
+// close shades at 4:30 PM by default
 static datetime_t close_time = {
     .year  = -1,
     .month = -1,
     .day   = -1,
     .dotw  = -1,
-    .hour  = 19,
-    .min   = 0,
+    .hour  = 16,
+    .min   = 30,
     .sec   = 0
 };
 

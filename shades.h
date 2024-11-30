@@ -14,7 +14,7 @@
 
 // -------------------Constants---------------------
 
-#define MOTOR_DURATION_MS         2800
+#define MOTOR_DURATION_MS         3200
 #define MAX_IMPORTANT_MODE_CYCLES 10
 
 // -------------------Pins--------------------------

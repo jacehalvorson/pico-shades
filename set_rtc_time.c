@@ -3,18 +3,22 @@
 // Called with results of operation
 static void ntp_result(NTP_T* state, int status, time_t *result) {
     if (status == 0 && result) {
-        struct tm *utc = gmtime(result);
+        // Set local time zone including Daylight Savings
+        setenv(ENV_TZ, LOCAL_TZ, 1);
+        tzset();
+
+        struct tm *local_time = localtime(result);
         
         datetime_t current_time = {
-            .year  = utc->tm_year + 1900,
-            .month = utc->tm_mon + 1,
-            .day   = utc->tm_mday,
-            .dotw  = utc->tm_wday,
-            .hour  = utc->tm_hour,
-            .min   = utc->tm_min,
-            .sec   = utc->tm_sec
+            .year  = local_time->tm_year + 1900,
+            .month = local_time->tm_mon + 1,
+            .day   = local_time->tm_mday,
+            .dotw  = local_time->tm_wday,
+            .hour  = local_time->tm_hour,
+            .min   = local_time->tm_min,
+            .sec   = local_time->tm_sec
         };
-               
+
         rtc_init();
         rtc_set_datetime(&current_time);
         debug_printf("Initializing RTC to %02d/%02d/%04d %02d:%02d:%02d\n",
@@ -76,13 +80,17 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
     uint8_t stratum = pbuf_get_at(p, 1);
 
     // Check the result
-    if (ip_addr_cmp(addr, &state->ntp_server_address) && port == NTP_PORT && p->tot_len == NTP_MSG_LEN &&
-        mode == 0x4 && stratum != 0) {
+    if (ip_addr_cmp(addr, &state->ntp_server_address) &&
+        port == NTP_PORT &&
+        p->tot_len == NTP_MSG_LEN &&
+        mode == 0x4 &&
+        stratum != 0
+    ) {
         uint8_t seconds_buf[4] = {0};
         pbuf_copy_partial(p, seconds_buf, sizeof(seconds_buf), 40);
         uint32_t seconds_since_1900 = seconds_buf[0] << 24 | seconds_buf[1] << 16 | seconds_buf[2] << 8 | seconds_buf[3];
         uint32_t seconds_since_1970 = seconds_since_1900 - NTP_DELTA;
-        time_t epoch = seconds_since_1970 + TIMEZONE_OFFSET_FROM_UTC_SEC;
+        time_t epoch = seconds_since_1970;
         ntp_result(state, 0, &epoch);
     } else {
         debug_printf("invalid ntp response\n");

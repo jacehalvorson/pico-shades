@@ -20,12 +20,8 @@ int main()
     debug_printf("Initializing motor position");
     // Find the closed position
     gpio_put(COUNTER_CLOCKWISE_PIN, 1);
-    sleep_ms(3000);
+    sleep_ms(MOTOR_DURATION_MS);
     gpio_put(COUNTER_CLOCKWISE_PIN, 0);
-    // Back off from the maximum
-    gpio_put(CLOCKWISE_PIN, 1);
-    sleep_ms(500);
-    gpio_put(CLOCKWISE_PIN, 0);
     shades_state = SHADES_CLOSED;
 
     debug_printf("Connecting to Wi-Fi network '%s'...\n", WIFI_SSID);

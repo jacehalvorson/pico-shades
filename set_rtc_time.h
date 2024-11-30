@@ -28,7 +28,9 @@ typedef struct NTP_T_ {
 #define NTP_TEST_TIME (30 * 1000)
 #define NTP_RESEND_TIME (10 * 1000)
 
-#define TIMEZONE_OFFSET_FROM_UTC_SEC (-5 * 3600)
+// CST America/Chicago
+#define ENV_TZ "TZ"
+#define LOCAL_TZ "CST6CDT,M3.2.0,M11.1.0"
 
 // Called with results of operation
 static void ntp_result(NTP_T* state, int status, time_t *result);
