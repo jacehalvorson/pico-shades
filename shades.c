@@ -4,9 +4,7 @@ int main()
 {
     TCP_SERVER_T *tcp_state;
 
-#ifdef DEBUG
     stdio_init_all();
-#endif
 
     debug_printf("Initializing pins");
     for (int i = 0; i < NUM_PINS; i++)
