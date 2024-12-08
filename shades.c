@@ -12,13 +12,21 @@ int main()
         gpio_init(pin_definitions[i].number);
         gpio_set_dir(pin_definitions[i].number, pin_definitions[i].direction);
         if (pin_definitions[i].direction == GPIO_OUT)
+        {
             gpio_put(pin_definitions[i].number, pin_definitions[i].default_value);
+        }
         else if (pin_definitions[i].direction == GPIO_IN)
         {
             if (pin_definitions[i].default_value == 1)
+            {
+                debug_printf("Pull up pin %d\n", pin_definitions[i].number);
                 gpio_pull_up(pin_definitions[i].number);
+            }
             else if (pin_definitions[i].default_value == 0)
+            {
+                debug_printf("Pull down pin %d\n", pin_definitions[i].number);
                 gpio_pull_down(pin_definitions[i].number);
+            }
         }
     }
 
@@ -211,14 +219,11 @@ void queue_open_shades(void)
     {
         shades_open_queued = true;
     }
-
-    irq_callback();
 }
 
 void queue_closed_shades(void)
 {
     shades_closed_queued = true;
-    irq_callback();
 }
 
 int64_t turn_off_motor_callback(alarm_id_t id, __unused void *user_data)

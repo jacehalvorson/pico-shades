@@ -17,16 +17,6 @@
 #define MOTOR_DURATION_MS         3200
 #define MAX_IMPORTANT_MODE_CYCLES 10
 
-// -------------------Pins--------------------------
-
-#define CLOCKWISE_PIN             0
-#define COUNTER_CLOCKWISE_PIN     1
-#define MOTOR_ENABLE_PIN          2
-#define BUTTON_PIN                3
-#define BUTTON_ENABLE_PIN         22
-
-#define NUM_PINS                  5
-
 // -------------------Global Data-------------------
 
 typedef struct pin_t
@@ -56,7 +46,15 @@ typedef enum shades_action_t
     REPEAT_TOGGLE
 } shades_action_t;
 
-// -------------------Constants---------------------
+// -------------------Pins--------------------------
+
+#define CLOCKWISE_PIN             0
+#define COUNTER_CLOCKWISE_PIN     1
+#define MOTOR_ENABLE_PIN          2
+#define BUTTON_PIN                3
+#define BUTTON_ENABLE_PIN         22
+
+#define NUM_PINS                  5
 
 static const pin_t pin_definitions[NUM_PINS] =
 {
