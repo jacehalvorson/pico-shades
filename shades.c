@@ -6,7 +6,7 @@ int main()
 
     stdio_init_all();
 
-    debug_printf("Initializing pins");
+    // Initialize the pins
     for (int i = 0; i < NUM_PINS; i++)
     {
         gpio_init(pin_definitions[i].number);
@@ -19,19 +19,16 @@ int main()
         {
             if (pin_definitions[i].default_value == 1)
             {
-                debug_printf("Pull up pin %d\n", pin_definitions[i].number);
                 gpio_pull_up(pin_definitions[i].number);
             }
             else if (pin_definitions[i].default_value == 0)
             {
-                debug_printf("Pull down pin %d\n", pin_definitions[i].number);
                 gpio_pull_down(pin_definitions[i].number);
             }
         }
     }
 
-    debug_printf("Initializing motor position");
-    // Find the closed position
+    // Find the closed position to initialize the motor
     gpio_put(COUNTER_CLOCKWISE_PIN, 1);
     add_alarm_in_ms(MOTOR_DURATION_MS, turn_off_motor_callback, NULL, false);
     shades_state = SHADES_CLOSED;
@@ -44,7 +41,7 @@ int main()
     set_rtc_time();
 
     debug_printf("Setting IRQs for the button and alarm\n");
-    gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_LEVEL_HIGH, true, &gpio_callback);
+    gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
     set_alarm(irq_callback);
 
     // Spinning up HTTP server
@@ -56,7 +53,7 @@ int main()
         debug_printf("Waiting for button press or alarm...\n");
         while (!interrupt_fired)
         {
-            tight_loop_contents();
+            __wfi();
         }
 
         debug_printf("Interrupt fired\n");
