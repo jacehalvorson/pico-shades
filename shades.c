@@ -44,7 +44,7 @@ int main()
     set_rtc_time();
 
     debug_printf("Setting IRQs for the button and alarm\n");
-    gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
+    gpio_set_irq_enabled_with_callback(BUTTON_PIN, GPIO_IRQ_LEVEL_HIGH, true, &gpio_callback);
     set_alarm(irq_callback);
 
     // Spinning up HTTP server

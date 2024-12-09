@@ -16,7 +16,14 @@ Clone [Picotool](https://github.com/raspberrypi/picotool):
 
 ```bash
 git clone https://github.com/raspberrypi/picotool.git
-export picotool_DIR=<picotool-path>
+sudo apt install build-essential pkg-config libusb-1.0-0-dev cmake
+mkdir build
+cd build
+cmake ..
+make
+sudo cp -p picotool /usr/local/bin
+cd ..
+export picotool_DIR=`pwd`
 ```
 
 Clone the firmware for the shades machine:
