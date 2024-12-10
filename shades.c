@@ -87,16 +87,6 @@ int main()
         // Set the next alarm
         set_alarm();
 
-        // Make sure TCP server is running
-        if (!tcp_state)
-        {
-            tcp_state = tcp_server_open();
-            if (!tcp_state)
-            {
-                debug_printf("Failed to open TCP server\n");
-            }
-        }
-
         // This iteration is done, reset the flag and make sure LED is off
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         interrupt_fired = false;
@@ -216,11 +206,14 @@ void queue_open_shades(void)
     {
         shades_open_queued = true;
     }
+
+    irq_callback();
 }
 
 void queue_closed_shades(void)
 {
     shades_closed_queued = true;
+    irq_callback();
 }
 
 int64_t turn_off_motor_callback(alarm_id_t id, __unused void *user_data)
