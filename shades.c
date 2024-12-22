@@ -15,17 +15,6 @@ int main()
         {
             gpio_put(pin_definitions[i].number, pin_definitions[i].default_value);
         }
-        else if (pin_definitions[i].direction == GPIO_IN)
-        {
-            if (pin_definitions[i].default_value == 1)
-            {
-                gpio_pull_up(pin_definitions[i].number);
-            }
-            else if (pin_definitions[i].default_value == 0)
-            {
-                gpio_pull_down(pin_definitions[i].number);
-            }
-        }
     }
 
     // Find the closed position to initialize the motor
